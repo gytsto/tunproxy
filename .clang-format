@@ -1,0 +1,61 @@
+Language: Cpp
+AlignConsecutiveMacros: true
+AlignEscapedNewlines: Right
+AlignTrailingComments: true
+BinPackArguments: true
+AllowAllArgumentsOnNextLine: false
+BinPackParameters: true
+ExperimentalAutoDetectBinPacking: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterCaseLabel: false
+    AfterEnum: true
+    AfterFunction: true
+    AfterStruct: true
+    AfterUnion: true
+    AfterExternBlock: true
+    BeforeElse: true
+    SplitEmptyFunction: true
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeTernaryOperators: true
+BreakStringLiterals: false
+ColumnLimit: 80
+ContinuationIndentWidth: 4
+DeriveLineEnding: false
+DerivePointerAlignment: false
+IncludeBlocks: Preserve
+IndentCaseLabels: true
+IndentPPDirectives: BeforeHash
+IndentWidth: 4
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+ReflowComments: false
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: false
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 1
+SpacesInCStyleCastParentheses: false
+SpacesInConditionalStatement: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+Standard: Latest
+TabWidth: 4
+UseCRLF: true
+UseTab: Never
+AlignOperands: true
+DerivePointerAlignment: true
+Cpp11BracedListStyle: false
+AlignAfterOpenBracket: Align
