@@ -15,8 +15,7 @@ static volatile int running = 1;
 
 static void exit_handler(int data)
 {
-    tuntap_set_state(&tun_dev, false);
-    tuntap_close(&tun_dev);
+    tuntap_deinit(&tun_dev);
     running = 0;
     printf("\r\n");
     exit(errno);
@@ -24,7 +23,9 @@ static void exit_handler(int data)
 
 static const struct signal_handler _signal_table[] = {
     // clang-format off
-    { SIGINT, exit_handler }
+    { SIGINT , exit_handler },
+    { SIGTERM, exit_handler },
+    { SIGABRT, exit_handler },
     // clang-format on
 };
 
@@ -41,18 +42,9 @@ int main(int argc, char const *argv[])
         return errno;
     }
 
-    if (tuntap_open(&tun_dev) < 0) {
-        printf("%s\r\n", strerror(errno));
-        return errno;
-    }
-
-    if (tuntap_set_state(&tun_dev, true) < 0) {
-        printf("%s\r\n", strerror(errno));
-        return errno;
-    }
-
-    if (tuntap_configure(&tun_dev, "10.0.0.2", "255.255.255.0") < 0) {
-        printf("%s\r\n", strerror(errno));
+    if (tuntap_init(&tun_dev, "10.0.0.1", "255.255.255.0") < 0) {
+        printf("Failed to initialize tuntap device! (%d / %s)\r\n", errno,
+               strerror(errno));
         return errno;
     }
 

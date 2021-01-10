@@ -72,4 +72,21 @@ int tuntap_write(struct tuntap_device const *dev, unsigned char const *buf,
 int tuntap_read(struct tuntap_device const *dev, unsigned char *buf,
                 size_t size);
 
+/**
+ * @brief initialize tuntap interface
+ * @param dev pointer to tuntap device
+ * @param addr ip address
+ * @param netmask netmask
+ * @return 0 on success, -errno on failure
+ */
+int tuntap_init(struct tuntap_device *dev, char const *addr,
+                char const *netmask);
+
+/**
+ * @brief deinitialize tuntap interface
+ * @param dev pointer to tuntap device
+ * @return 0 on success, -errno on failure
+ */
+int tuntap_deinit(struct tuntap_device *dev);
+
 #endif /* __TUNTAP_H__ */
