@@ -9,6 +9,8 @@
 struct tuntap_device
 {
     char name[IFNAMSIZ + 1];
+    char addr[16];
+    char netmask[16];
     int fd;
     int flags;
     struct
@@ -32,6 +34,15 @@ int tuntap_open(struct tuntap_device *dev);
  */
 int tuntap_close(struct tuntap_device *dev);
 
+/**
+ * @brief configure tuntap interface
+ * @param dev pointer to tuntap device
+ * @param addr ip address
+ * @param netmask netmask
+ * @return 0 on success, -errno on failure
+ */
+int tuntap_configure(struct tuntap_device *dev, char const *addr,
+                     char const *netmask);
 
 /**
  * @brief set new tuntap socket state

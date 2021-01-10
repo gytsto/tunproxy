@@ -51,6 +51,11 @@ int main(int argc, char const *argv[])
         return errno;
     }
 
+    if (tuntap_configure(&tun_dev, "10.0.0.2", "255.255.255.0") < 0) {
+        printf("%s\r\n", strerror(errno));
+        return errno;
+    }
+
     while (running) {
         unsigned char buf[1024] = { 0 };
         int read_bytes = tuntap_read(&tun_dev, buf, sizeof(buf));

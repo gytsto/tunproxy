@@ -91,6 +91,48 @@ int tuntap_close(struct tuntap_device *dev)
     return 0;
 }
 
+int tuntap_configure(struct tuntap_device *dev, char const *addr,
+                     char const *netmask)
+{
+    if (!_is_device_valid(dev) || !addr || !netmask) {
+        errno = -EINVAL;
+        return -1;
+    }
+
+    struct ifreq ifr = { 0 };
+    struct sockaddr_in sock_addr = { 0 };
+
+    strncpy(ifr.ifr_name, dev->name, IFNAMSIZ);
+
+    sock_addr.sin_family = AF_INET;
+
+    if (inet_pton(AF_INET, addr, &sock_addr.sin_addr) <= 0) {
+        errno = -EINVAL;
+        return -1;
+    }
+
+    ifr.ifr_addr = *(struct sockaddr *)&sock_addr;
+
+    if (ioctl(dev->socket.fd, SIOCSIFADDR, (caddr_t)&ifr) < 0) {
+        return -1;
+    }
+
+    if (inet_pton(AF_INET, netmask, &sock_addr.sin_addr) <= 0) {
+        errno = -EINVAL;
+        return -1;
+    }
+
+    ifr.ifr_netmask = *(struct sockaddr *)&sock_addr;
+
+    if (ioctl(dev->socket.fd, SIOCSIFNETMASK, (caddr_t)&ifr) < 0) {
+        return -1;
+    }
+
+    strncpy(dev->addr, addr, sizeof(dev->addr));
+    strncpy(dev->netmask, netmask, sizeof(dev->netmask));
+
+    return 0;
+}
 
 int tuntap_set_state(struct tuntap_device *dev, bool state)
 {
