@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "log.h"
 #include "signal_handler.h"
 #include "socks5.h"
 #include "tuntap.h"
@@ -30,7 +31,11 @@ static const struct signal_handler _signal_table[] = {
 
 int main(int argc, char const *argv[])
 {
-    printf("getuid\r\n");
+    if (log_init() != 0) {
+        fprintf(stderr, "Failed to logging system! (%d / %s)\r\n", errno,
+                strerror(errno));
+        return -1;
+    }
     if (getuid() != 0) {
         printf("Not a root!\r\n");
         return errno;
