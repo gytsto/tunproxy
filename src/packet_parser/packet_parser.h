@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+bool is_ip_valid(char *ip);
 bool is_packet_udp(unsigned char *buf);
 bool is_packet_tcp(unsigned char *buf);
 bool is_packet_ipv4(unsigned char *buf);

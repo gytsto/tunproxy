@@ -22,6 +22,13 @@ char const *get_protocol_name(unsigned int protocol_id)
     }
 }
 
+bool is_ip_valid(char *ip)
+{
+    struct sockaddr_in sa = { 0 };
+    int result = inet_pton(AF_INET, ip, &(sa.sin_addr));
+    return result != 0;
+}
+
 bool is_packet_udp(unsigned char *buf)
 {
     struct iphdr *iph = (struct iphdr *)buf;
