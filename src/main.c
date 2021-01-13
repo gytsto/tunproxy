@@ -26,6 +26,9 @@ static const struct signal_handler _signal_table[] = {
     { SIGINT , exit_handler },
     { SIGTERM, exit_handler },
     { SIGABRT, exit_handler },
+    { SIGHUP , exit_handler },
+    { SIGQUIT, exit_handler },
+    { SIGKILL, exit_handler },
     // clang-format on
 };
 
@@ -62,7 +65,8 @@ int main(int argc, char const *argv[])
         return errno;
     }
 
-    while(1);
+    while (1)
+        ;
 
     return 0;
 }
