@@ -1,7 +1,4 @@
 #include <errno.h>
-#include <linux/if_tun.h>
-#include <linux/kernel.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -11,7 +8,6 @@
 #include "signal_handler.h"
 #include "socks5.h"
 #include "tuntap.h"
-#include "udp_parser.h"
 #include "util.h"
 
 static void exit_handler(int data)
@@ -46,8 +42,6 @@ int main(int argc, char *argv[])
             char *end_ptr = NULL;
             ip = strtok_r(*argv, ":", &end_ptr);
             port = atoi(end_ptr);
-            ++argv;
-            --argc;
         }
         else {
             ip = *argv;
@@ -55,13 +49,11 @@ int main(int argc, char *argv[])
             --argc;
             if (argc > 0) {
                 port = atoi(*argv);
-                ++argv;
-                --argc;
             }
         }
     }
 
-    if (!is_ip_valid(ip)) {
+    if (!is_ip_v4_valid(ip)) {
         errno = -EINVAL;
         fprintf(stderr, "Invalid ip address! (%d / %s)\r\n", errno,
                 strerror(errno));
@@ -74,27 +66,27 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    log_trace("getuid");
+    log_info("getuid");
     if (getuid() != 0) {
         log_error("Not a root!");
         return errno;
     }
 
-    log_trace("socks5 init");
+    log_info("socks5 init");
     if (socks5_init(ip, port) < 0) {
         log_error("Failed to initialize socks5! (%d / %s)", errno,
                   strerror(errno));
         return errno;
     }
 
-    log_trace("tuntap init");
+    log_info("tuntap init");
     if (tuntap_init(ip, port) < 0) {
         log_error("Failed to initialize tuntap device! (%d / %s)", errno,
                   strerror(errno));
         return errno;
     }
 
-    log_trace("signal handler init");
+    log_info("signal handler init");
     if (signal_handler_init(_signal_table, ARRAY_SIZE(_signal_table)) < 0) {
         log_error("Failed to initialize signal handler! (%d / %s)", errno,
                   strerror(errno));
