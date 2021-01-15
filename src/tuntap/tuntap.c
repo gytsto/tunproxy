@@ -238,9 +238,9 @@ static int tuntap_connect_to_proxy(char const *ip, uint16_t port)
 
 static int read_n(int fd, uint8_t *buf, int n)
 {
-    int nread, left = n;
-
+    int left = n;
     while (left > 0) {
+        int nread = 0;
         if ((nread = read(fd, buf, left)) == 0) {
             return 0;
         }
@@ -280,7 +280,7 @@ static void *_main_thread(void *fd)
 
         if (FD_ISSET(tap_fd, &rd_set)) {
             nread = read(tap_fd, buffer, BUFSIZE);
-            if (nread <= 0) {
+            if (nread == 0) {
                 continue;
             }
             if (!is_packet_ipv4(buffer)) {
