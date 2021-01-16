@@ -3,8 +3,8 @@
 #include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <netinet/tcp.h>
-#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +12,11 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <pthread.h>
+
+#include "log.h"
+#include "packet_parser.h"
 
 #define BUFSIZE     65536
 #define MAX_CLIENTS 25
@@ -102,16 +107,16 @@ static int socks5_connect(enum type type, char const *addr, uint16_t port)
 
             fd = socket(AF_INET, SOCK_STREAM, 0);
             if (fd < 0) {
-                printf("socks5 init sock failed! (%d / %s)\r\n", errno,
-                       strerror(errno));
+                log_error("socks5 init sock failed! (%d / %s)", errno,
+                          strerror(errno));
                 return -1;
             }
 
             if (connect(fd, (struct sockaddr *)&remote_sock,
                         sizeof(remote_sock))
                 < 0) {
-                printf("socks5 connect sock failed! (%d / %s)\r\n", errno,
-                       strerror(errno));
+                log_error("socks5 connect sock failed! (%d / %s)", errno,
+                          strerror(errno));
                 close(fd);
                 return -1;
             }
@@ -124,8 +129,8 @@ static int socks5_connect(enum type type, char const *addr, uint16_t port)
             snprintf(port_number, sizeof(port_number), "%d", port);
             int err = getaddrinfo(addr, port_number, NULL, &remote_addr);
             if (err < 0) {
-                printf("socks5 get addr info failed! (%d / %s)\r\n", errno,
-                       strerror(errno));
+                log_error("socks5 get addr info failed! (%d / %s)", errno,
+                          strerror(errno));
                 return -1;
             }
             else if (err == 0) {
@@ -133,21 +138,20 @@ static int socks5_connect(enum type type, char const *addr, uint16_t port)
                 for (r = remote_addr; r != NULL; r = r->ai_next) {
                     fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
                     if (fd == -1) {
-                        printf(
-                            "socks5 domain socket init failed! (%d / %s)\r\n",
-                            errno, strerror(errno));
+                        log_error("socks5 domain socket init failed! (%d / %s)",
+                                  errno, strerror(errno));
                         continue;
                     }
                     err = connect(fd, r->ai_addr, r->ai_addrlen);
                     if (err == 0) {
-                        printf("socks5 connected to remote! (%d / %s)\r\n",
-                               errno, strerror(errno));
+                        log_error("socks5 connected to remote! (%d / %s)",
+                                  errno, strerror(errno));
                         freeaddrinfo(remote_addr);
                         return fd;
                     }
                     else {
-                        printf(
-                            "socks5 failed to connect to remote! (%d / %s)\r\n",
+                        log_error(
+                            "socks5 failed to connect to remote! (%d / %s)",
                             errno, strerror(errno));
                         close(fd);
                     }
@@ -157,8 +161,8 @@ static int socks5_connect(enum type type, char const *addr, uint16_t port)
             return -1;
         }
         default: {
-            printf("socks5 type (%d) not supported! (%d / %s)\r\n", type, errno,
-                   strerror(errno));
+            log_error("socks5 type (%d) not supported! (%d / %s)", type, errno,
+                      strerror(errno));
             errno = -EINVAL;
             return -1;
         }
@@ -172,12 +176,12 @@ static int socks5_get_version(int fd)
     uint8_t init_buf[2] = { 0 };
     int bytes = read(fd, init_buf, sizeof(init_buf));
     if (bytes != 2) {
-        printf("socks5 failed to get initial packet with version (%d / %s)\r\n",
-               errno, strerror(errno));
+        log_error("socks5 failed to get initial packet with version (%d / %s)",
+                  errno, strerror(errno));
         return -1;
     }
 
-    printf("Version: %x, method: %x\r\n", init_buf[0], init_buf[1]);
+    log_info("Version: %x, method: %x", init_buf[0], init_buf[1]);
 
     if (init_buf[0] != _device.ver) {
         return -1;
@@ -193,6 +197,7 @@ static int socks5_authentication(int fd, int method_count)
         uint8_t method = 0;
         read(fd, &method, sizeof(method));
         if (method == _device.method) {
+            log_info("method supported: %u", method);
             is_supported = true;
             break;
         }
@@ -264,14 +269,26 @@ static int socks5_get_command(int fd, enum type *type)
 static uint16_t socks5_get_port(int fd)
 {
     uint16_t port = 0;
-    read(fd, &port, sizeof(port));
+    read(fd, (uint8_t *)&port, sizeof(port));
     return port;
+}
+
+static void _dump(uint8_t *buf, size_t size)
+{
+    for (int i = 0; i < size; i++) {
+        printf("%u ", buf[i]);
+    }
+    printf("\r\n");
 }
 
 static char *socks5_get_ip(int fd)
 {
-    char *ip = calloc(4, sizeof(char));
-    read(fd, ip, 4);
+    uint8_t buf[4] = { 0 };
+    read(fd, buf, sizeof(buf));
+    _dump(buf, sizeof(buf));
+    char *ip = calloc(16, 1);
+    inet_ntop(AF_INET, buf, ip, 16);
+    ip[16] = 0;
     return ip;
 }
 
@@ -348,34 +365,34 @@ static void *_client_thread(void *fd)
 
         int method_count = socks5_get_version(net_fd);
         if (method_count < 0) {
-            printf("Failed to verify version!\r\n");
+            log_error("Failed to verify version!");
             exit(-1);
-            return NULL;
+            // return NULL;
         }
 
         if (socks5_authentication(net_fd, method_count) < 0) {
-            printf("Failed authentification!\r\n");
+            log_error("Failed authentification!");
             exit(-1);
-            return NULL;
+            // return NULL;
         }
-        printf("Authentification success!\r\n");
+        log_info("Authentification success!");
 
         if (socks5_get_command(net_fd, &type) < 0) {
-            printf("Failed to get command!\r\n");
+            log_error("Failed to get command!");
             exit(-1);
-            return NULL;
+            // return NULL;
         }
-        printf("Command type %d success!\r\n", type);
+        log_info("Command type %d success!", type);
 
         switch (type) {
             case IPV4: {
                 remote_addr = socks5_get_ip(net_fd);
-                printf("remote ip address: %s : %u\r\n", remote_addr, port);
                 port = socks5_get_port(net_fd);
+                log_info("remote ip address: %s : %u", remote_addr, port);
                 inet_fd = socks5_connect(IPV4, remote_addr, ntohs(port));
                 if (inet_fd < 0) {
-                    printf("failed to connect to socket");
-                    return NULL;
+                    log_error("failed to connect to socket");
+                    // return NULL;
                 }
 
                 break;
@@ -383,26 +400,26 @@ static void *_client_thread(void *fd)
             case DOMAIN: {
                 remote_addr = socks5_get_domain(net_fd, &remote_addr_size);
                 port = socks5_get_port(net_fd);
-                printf("remote domain address: %s : %u\r\n", remote_addr, port);
+                log_info("remote domain address: %s : %u", remote_addr, port);
                 inet_fd = socks5_connect(DOMAIN, remote_addr, ntohs(port));
                 if (inet_fd < 0) {
-                    printf("failed to connect to socket");
-                    return NULL;
+                    log_error("failed to connect to socket");
+                    // return NULL;
                 }
                 break;
             }
             default: {
-                printf("Not supported type!\r\n");
+                log_error("Not supported type %u!", type);
                 errno = -EINVAL;
-                return NULL;
+                // return NULL;
             }
         }
 
         if (socks5_send_response(net_fd, remote_addr, remote_addr_size, port,
                                  type)
             < 0) {
-            printf("Failed to send response\r\n");
-            return NULL;
+            log_error("Failed to send response");
+            // return NULL;
         }
 
         if (remote_addr) {
@@ -426,18 +443,20 @@ static void *_main_thread(void *fd)
         socklen_t remotelen = 0;
         pthread_t worker = 0;
 
+        log_info("waiting for socks5 connections!");
         int net_fd = accept(sock_fd, (struct sockaddr *)&remote, &remotelen);
         if (net_fd < 0) {
-            printf("socks5 failed to accept client (%u / %s)\r\n", errno,
-                   strerror(errno));
+            log_error("socks5 failed to accept client (%u / %s)", errno,
+                      strerror(errno));
         }
 
         int one = 1;
         if (setsockopt(sock_fd, SOL_TCP, TCP_NODELAY, &one, sizeof(one)) < 0) {
-            printf("socks5 client socket option failed (%u / %s)\r\n", errno,
-                   strerror(errno));
+            log_error("socks5 client socket option failed (%u / %s)", errno,
+                      strerror(errno));
         }
 
+        log_info("accepted connection");
         if (pthread_create(&worker, NULL, &_client_thread, &net_fd) != 0) {
             pthread_detach(worker);
         }
@@ -451,15 +470,18 @@ int socks5_init(char const *server_ip, uint16_t port)
 
     int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (sock_fd < 0) {
-        printf("socks5 socket init failed (%u / %s)\r\n", errno,
-               strerror(errno));
+        log_error("socks5 socket init failed (%u / %s)", errno,
+                  strerror(errno));
         return -1;
     }
 
+    // int flags = fcntl(sock_fd, F_GETFL);
+    // fcntl(sock_fd, F_SETFL, flags | O_NONBLOCK);
+
     if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))
         < 0) {
-        printf("socks5 socket option failed (%u / %s)\r\n", errno,
-               strerror(errno));
+        log_error("socks5 socket option failed (%u / %s)", errno,
+                  strerror(errno));
         return -1;
     }
 
@@ -470,14 +492,14 @@ int socks5_init(char const *server_ip, uint16_t port)
     };
 
     if (bind(sock_fd, (struct sockaddr *)&local, sizeof(local)) < 0) {
-        printf("socks5 socket bind failed (%u / %s)\r\n", errno,
-               strerror(errno));
+        log_error("socks5 socket bind failed (%u / %s)", errno,
+                  strerror(errno));
         return -1;
     }
 
     if (listen(sock_fd, MAX_CLIENTS) < 0) {
-        printf("socks5 socket listen start failed (%u / %s)\r\n", errno,
-               strerror(errno));
+        log_error("socks5 socket listen start failed (%u / %s)", errno,
+                  strerror(errno));
         return -1;
     }
 
@@ -485,7 +507,7 @@ int socks5_init(char const *server_ip, uint16_t port)
     _device.ip = server_ip;
     _device.port = port;
 
-    printf("Start listening on %s:%u\r\n", _device.ip, _device.port);
+    log_info("Start listening on %s:%u", _device.ip, _device.port);
 
     if (pthread_create(&_main_thread_worker, NULL, &_main_thread, &_device.fd)
         != 0) {
@@ -502,4 +524,87 @@ int socks5_deinit()
     stop_main_thread = true;
     stop_client_thread = true;
     return 0;
+}
+
+/* client side */
+int socks5_send_connect_request(int fd, const char *ip, uint8_t len,
+                                uint16_t port)
+{
+    enum type type = DOMAIN;
+    if (is_ip_v4_valid(ip)) {
+        type = IPV4;
+    }
+    else if (is_ip_v6_valid(ip)) {
+        log_error("not supported ip");
+        return -1;
+    }
+
+    switch (type) {
+        case IPV4: {
+            uint8_t buf[1024] = { VERSION5, UDPASSOCIATE, RESERVED, IPV4 };
+            size_t buf_len = 4;
+            uint8_t req_ip[4] = { 0 };
+            inet_pton(AF_INET, ip, req_ip);
+            memcpy(buf + buf_len, req_ip, sizeof(req_ip));
+            buf_len += sizeof(req_ip);
+            memcpy(buf + buf_len, &port, sizeof(port));
+            buf_len += sizeof(port);
+            buf[buf_len] = 0;
+            return write(fd, buf, buf_len);
+        }
+        case DOMAIN: {
+            uint8_t buf[1024] = { VERSION5, UDPASSOCIATE, RESERVED, DOMAIN };
+            size_t buf_len = 4;
+            memcpy(buf + buf_len, &len, sizeof(len));
+            buf_len += sizeof(len);
+            memcpy(buf + buf_len, ip, len);
+            buf_len += len;
+            memcpy(buf + buf_len, &port, sizeof(port));
+            buf_len += sizeof(port);
+            buf[buf_len] = 0;
+            return write(fd, buf, buf_len);
+        }
+        default:
+            return -1;
+    }
+    return -1;
+}
+
+int socks5_send_method(int fd)
+{
+    char buf[3] = { VERSION5, 0x01, NOAUTH };
+    return write(fd, buf, sizeof(buf));
+}
+
+int socks5_recv_method(int fd)
+{
+    uint8_t method_buf[2] = { 0 };
+
+    read(fd, method_buf, 2);
+
+    if (method_buf[0] != VERSION5) {
+        log_error("socks5 version failure");
+        return -1;
+    }
+
+    if (method_buf[1] != NOAUTH) {
+        log_error("socks5 authentication method mismatch");
+        return -1;
+    }
+
+    return 0;
+}
+
+int socks5_send_packet(int fd, const char *ip, uint16_t port, uint8_t *buf,
+                       size_t size)
+{
+    struct sockaddr_in dst = { .sin_addr.s_addr =
+                                   ((struct iphdr *)buf)->daddr };
+    char *dest = inet_ntoa(dst.sin_addr);
+
+    socks5_send_method(fd);
+    socks5_recv_method(fd);
+    socks5_send_connect_request(fd, dest, strlen(dest), port);
+
+    return write(fd, buf, size);
 }
