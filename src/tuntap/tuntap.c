@@ -286,6 +286,9 @@ static void *_main_thread(void *fd)
             if (!is_packet_ipv4(buffer) && !is_packet_udp(buffer)) {
                 continue;
             }
+
+            print_ip_header(buffer, sizeof(buffer));
+
             plength = htons(nread);
             socks5_send_packet(net_fd, _device.proxy.ip, _device.proxy.port,
                                buffer, nread);
@@ -296,8 +299,6 @@ static void *_main_thread(void *fd)
             if (nread == 0) {
                 break;
             }
-
-            print_ip_header(buffer, sizeof(buffer));
 
             nread = read_n(net_fd, buffer, ntohs(plength));
             write(tap_fd, buffer, nread);
