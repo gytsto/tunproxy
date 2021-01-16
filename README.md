@@ -16,3 +16,12 @@ run cppcheck script to analyse code for errors / warnings / style mistakes
 1. `sudo apt install cppcheck`
 2. `touch static_analysis_result.txt`
 3. `./cppcheck/cppcheck_run.sh`
+
+# features
+1. tuntap interface - **working separately**
+2. proxy socks5 socket - **working separately**
+3. tuntap & socks5 combination - **doesn't work**
+
+# todo
+1. socks5 client interface
+2. fix combination of socks5 and proxy
