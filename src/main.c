@@ -29,6 +29,14 @@ static const struct signal_handler _signal_table[] = {
     // clang-format on
 };
 
+static void _usage()
+{
+    fprintf(stderr, "tunproxy usage\r\n"
+                    "Run tunproxy as root and provide proxy_ip and proxy_port!\r\n"
+                    "./tunproxy proxy_ip proxy_port\r\n"
+                    "./tunproxy proxy_ip:proxy_port\r\n");
+}
+
 int main(int argc, char *argv[])
 {
     char *ip = "127.0.0.1";
@@ -51,6 +59,9 @@ int main(int argc, char *argv[])
                 port = atoi(*argv);
             }
         }
+    } else {
+        _usage();
+        return 0;
     }
 
     if (!is_ip_v4_valid(ip)) {

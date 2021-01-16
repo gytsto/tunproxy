@@ -283,7 +283,7 @@ static void *_main_thread(void *fd)
             if (nread == 0) {
                 continue;
             }
-            if (!is_packet_ipv4(buffer)) {
+            if (!is_packet_ipv4(buffer) && !is_packet_udp(buffer)) {
                 continue;
             }
             plength = htons(nread);
